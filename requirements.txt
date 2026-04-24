@@ -7,6 +7,7 @@ python-dotenv
 gunicorn
 python-dotenv
 dash-deck
+openai
 pydeck
 ipywidgets
 dash-leaflet
