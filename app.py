@@ -13,10 +13,14 @@ from load_data import (
     get_dictionary_fields_for_table,
 )
 from graph_builder_tab import build_graph_builder_tab, register_graph_builder_callbacks
+from chat_tab import build_chat_tab, register_chat_callbacks
+from metadata_catalog_service import load_metadata_catalog
 
 engine = get_engine()
 data_tables, control_tables = list_antt_tables(engine)
 table_metadata_map = get_table_metadata_map(engine, data_tables)
+
+load_metadata_catalog(engine=engine, auto_create=True)
 
 DEFAULT_PAGE_SIZE = 100
 PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500]
@@ -28,7 +32,10 @@ dictionary_full_df = dataframe_for_dash(load_table(engine, "antt_antt_dicionario
 
 app = Dash(
     __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    external_stylesheets=[
+        dbc.themes.BOOTSTRAP,
+        dbc.icons.BOOTSTRAP,
+    ],
     title=APP_TITLE,
 )
 server = app.server
@@ -367,6 +374,7 @@ app.layout = dbc.Container(
                             ],
                         ),
                         build_graph_builder_tab(),
+                        build_chat_tab(),
                     ],
                 ),
                 width=12,
@@ -453,6 +461,7 @@ def update_table_views(table_name, page_size):
 
 
 register_graph_builder_callbacks(app, engine)
+register_chat_callbacks(app, engine)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=8050)
