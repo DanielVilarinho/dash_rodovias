@@ -9,7 +9,7 @@ venv/
 env/
 build/
 dist/
-.ipynb
+*.ipynb
 *.egg-info/
 .DS_Store
 .idea/
