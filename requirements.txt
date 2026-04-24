@@ -1,0 +1,12 @@
+dash
+dash-bootstrap-components
+pandas
+SQLAlchemy
+psycopg2-binary
+python-dotenv
+gunicorn
+python-dotenv
+dash-deck
+pydeck
+ipywidgets
+dash-leaflet
