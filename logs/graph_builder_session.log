@@ -1,1 +1,11 @@
-2026-04-24 16:27:02,406 | INFO | event=module_loaded | log_file='C:\\Users\\DANIEL\\Desktop\\dash_rodovias\\logs\\graph_builder_session.log'
+2026-04-27 17:08:51,403 | INFO | event=module_loaded | log_file='C:\\Users\\DANIEL\\Desktop\\dash_rodovias\\logs\\graph_builder_session.log'
+2026-04-27 17:08:57,868 | INFO | event=build_graph_builder_tab_called
+2026-04-27 17:08:57,871 | INFO | event=register_graph_builder_callbacks_called
+2026-04-27 17:10:03,373 | INFO | event=update_graph_type_ui | graph_type='line'
+2026-04-27 17:10:03,376 | INFO | event=update_graph_builder_columns_start | table_name=None
+2026-04-27 17:10:03,376 | INFO | event=update_graph_builder_columns_no_table
+2026-04-27 17:10:03,378 | INFO | event=toggle_graph_builder_buttons | table_name=None | disabled=True
+2026-04-27 17:10:03,381 | INFO | event=render_global_filter_rows_start | filter_count=0 | table_name=None
+2026-04-27 17:10:03,381 | INFO | event=render_global_filter_rows_no_table
+2026-04-27 17:10:03,382 | INFO | event=render_graphs_start | table_name=None | charts_count=0 | global_filter_cols=[] | global_filter_ops=[] | global_filter_vals=[]
+2026-04-27 17:10:03,382 | INFO | event=render_graphs_no_charts

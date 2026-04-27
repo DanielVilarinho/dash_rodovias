@@ -204,6 +204,80 @@ def _find_tables_with_column_strategy(context: dict, exact_name: str, partial_te
     return []
 
 
+def _extract_column_search_term(user_message: str) -> str | None:
+    msg = _normalize_text(user_message)
+
+    patterns = [
+        r"quais tabelas tem coluna ([a-zA-Z0-9_]+)",
+        r"quais tabelas tem o campo ([a-zA-Z0-9_]+)",
+        r"quais tabelas tem campo ([a-zA-Z0-9_]+)",
+        r"quais tabelas tem ([a-zA-Z0-9_]+)",
+        r"que tabelas tem coluna ([a-zA-Z0-9_]+)",
+        r"que tabelas tem o campo ([a-zA-Z0-9_]+)",
+        r"que tabelas tem campo ([a-zA-Z0-9_]+)",
+        r"que tabelas tem ([a-zA-Z0-9_]+)",
+        r"tabelas com coluna ([a-zA-Z0-9_]+)",
+        r"tabelas com campo ([a-zA-Z0-9_]+)",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, msg)
+        if match:
+            return match.group(1)
+
+    return None
+
+
+def _column_term_aliases(term: str) -> list[str]:
+    term_norm = _normalize_text(term)
+
+    alias_map = {
+        "uf": ["uf", "sg_uf", "sigla_uf", "estado", "nm_uf", "id_uf", "cod_uf", "rodovia_uf"],
+        "latitude": ["latitude", "lat", "latitude_entrada", "latitude_saida"],
+        "longitude": ["longitude", "lon", "lng", "longitude_entrada", "longitude_saida"],
+        "municipio": ["municipio", "municipal", "municipio_entrada", "municipio_saida", "Municipio"],
+        "km": ["km", "km_m", "km_inicial", "km_final", "km_m_entrada", "km_m_saida"],
+    }
+
+    if term_norm in alias_map:
+        return alias_map[term_norm]
+
+    return [term_norm]
+
+
+def _find_tables_for_column_term(context: dict, term: str) -> list[dict]:
+    aliases = _column_term_aliases(term)
+    aliases_norm = [_normalize_text(a) for a in aliases]
+    pool = _get_context_table_pool(context)
+
+    matches = []
+
+    for item in pool:
+        columns = item.get("columns", []) or []
+        dict_fields = item.get("dictionary_summary", []) or []
+
+        found_cols = []
+
+        for col in columns:
+            col_norm = _normalize_text(col)
+            if any(alias in col_norm or col_norm == alias for alias in aliases_norm):
+                found_cols.append(col)
+
+        if not found_cols:
+            for field in dict_fields:
+                field_name = field.get("field_name")
+                field_norm = _normalize_text(field_name)
+                if any(alias in field_norm or field_norm == alias for alias in aliases_norm):
+                    found_cols.append(field_name)
+
+        if found_cols:
+            item_copy = dict(item)
+            item_copy["_matched_columns"] = list(dict.fromkeys(found_cols))
+            matches.append(item_copy)
+
+    return matches
+
+
 def _message_mentions_table(user_message: str, catalog_tables: list[dict]) -> bool:
     msg = _normalize_text(user_message)
 
@@ -897,20 +971,28 @@ def _direct_catalog_answer(
         total = context.get("catalog_table_count", 0)
         return {"answer": f"Temos **{total} tabelas** no catálogo atual."}
 
-    if ("quais tabelas" in msg or "que tabela" in msg or "que tabelas" in msg) and ("uf" in msg or "proximo disso" in msg or "parecido com" in msg):
-        matches = _find_tables_with_column_strategy(context, exact_name="uf", partial_term="uf")
+    requested_column_term = _extract_column_search_term(user_message)
+
+    if requested_column_term and ("quais tabelas" in msg or "que tabelas" in msg):
+        matches = _find_tables_for_column_term(context, requested_column_term)
+
         if matches:
             lines = []
-            for item in matches[:30]:
-                cols = item.get("columns", [])
-                cols_found = [c for c in cols if "uf" in _normalize_text(c)]
-                if not cols_found:
-                    dict_fields = item.get("dictionary_summary", []) or []
-                    cols_found = [f.get("field_name") for f in dict_fields if "uf" in _normalize_text(f.get("field_name"))]
-                detail = ", ".join([c for c in cols_found if c][:8]) if cols_found else "campo relacionado a uf"
+            for item in matches[:50]:
+                matched_cols = item.get("_matched_columns", [])[:8]
+                detail = ", ".join(matched_cols) if matched_cols else f"campo relacionado a {requested_column_term}"
                 lines.append(f"- **{item.get('table_name')}** → {detail}")
-            return {"answer": "Encontrei estas tabelas com coluna exata ou próxima de **`uf`**:\n" + "\n".join(lines)}
-        return {"answer": "Não encontrei tabelas com coluna exata ou próxima de **`uf`** no catálogo atual."}
+
+            return {
+                "answer": (
+                    f"Encontrei estas tabelas com coluna exata ou próxima de **`{requested_column_term}`**:\n"
+                    + "\n".join(lines)
+                )
+            }
+
+        return {
+            "answer": f"Não encontrei tabelas com coluna exata ou próxima de **`{requested_column_term}`** no catálogo atual."
+        }
 
     if (
         (
@@ -945,22 +1027,13 @@ def _direct_catalog_answer(
         if comparative:
             return {"answer": comparative}
 
-    if is_analytic_request and "municipio" in msg:
-        matches = _find_tables_with_column_strategy(context, exact_name="municipio", partial_term="municipio")
+    if is_analytic_request and ("municipio" in msg or "município" in msg):
+        matches = _find_tables_for_column_term(context, "municipio")
         if matches:
             lines = []
             for item in matches[:20]:
-                cols = item.get("columns", [])
-                cols_found = [c for c in cols if "municipio" in _normalize_text(c) or "municipal" in _normalize_text(c)]
-                if not cols_found:
-                    dict_fields = item.get("dictionary_summary", []) or []
-                    cols_found = [
-                        f.get("field_name")
-                        for f in dict_fields
-                        if "municipio" in _normalize_text(f.get("field_name"))
-                        or "municipal" in _normalize_text(f.get("field_name"))
-                    ]
-                lines.append(f"- **{item.get('table_name')}** → " + ", ".join([c for c in cols_found if c][:8]))
+                matched_cols = item.get("_matched_columns", [])[:8]
+                lines.append(f"- **{item.get('table_name')}** → " + ", ".join(matched_cols))
             return {
                 "answer": "Encontrei estas tabelas com colunas relacionadas a **município**:\n" + "\n".join(lines)
             }
